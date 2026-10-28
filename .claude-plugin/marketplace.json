@@ -1,19 +1,19 @@
 {
-  "name": "openai-codex",
+  "name": "nobrainer-codex",
   "owner": {
-    "name": "OpenAI"
+    "name": "NoBrainer Tech"
   },
   "metadata": {
     "description": "Codex plugins to use in Claude Code for delegation and code review.",
-    "version": "1.0.6"
+    "version": "1.0.6-nb.1"
   },
   "plugins": [
     {
-      "name": "codex",
+      "name": "codex-in-claude",
       "description": "Use Codex from Claude Code to review code or delegate tasks.",
-      "version": "1.0.6",
+      "version": "1.0.6-nb.1",
       "author": {
-        "name": "OpenAI"
+        "name": "NoBrainer Tech"
       },
       "source": "./plugins/codex"
     }
