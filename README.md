@@ -1,108 +1,118 @@
-# codex-in-claude
+<p align="center">
+  <a href="https://nobrainer.tech/">
+    <img src="docs/assets/nobrainer-logo.svg" width="72" alt="NoBrainer Tech">
+  </a>
+</p>
 
-Independent NoBrainer Tech fork of [openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc), based on commit `db52e28f4d9ded852ab3942cea316258ae4ef346` (1.0.6). Not an official OpenAI release. Upstream copyright, Apache-2.0 LICENSE and NOTICE are preserved.
+<h1 align="center">Codex in Claude</h1>
 
-## Existing Codex sessions
+<p align="center"><strong>Your existing Codex sessions, within reach of Claude Code.</strong></p>
+<p align="center">Find a session. Send it an instruction. Check its queue.<br>Review code and delegate work from the same place.</p>
 
-- `/codex-in-claude:sessions`: read all **local, non-archived** Codex sessions, paginating by their real sections. Use `--archived` for archived sessions.
-- `/codex-in-claude:send <UUID> <instruction>`: preview the exact target, then queue the explicitly authorized message. Preserves the session's model, effort, goal and cwd.
-- `/codex-in-claude:queue <UUID>`: read pending queue IDs without exposing message bodies.
+<p align="center">
+  <a href="#install">Install</a> ·
+  <a href="#work-with-existing-sessions">Session commands</a> ·
+  <a href="#command-reference">Command reference</a> ·
+  <a href="COMPATIBILITY.md">Compatibility</a> ·
+  <a href="#built-with-nobrainer-tech-flow">Built with NoBrainer Tech Flow</a>
+</p>
 
-Section membership comes from `threadSection/list` and `thread/list`, not title heuristics or direct database access. The app-server may return a different visual section order than Desktop. Remote hosts and ChatGPT conversations are **not included**; this is not a full multi-host Desktop export. Requires a Codex version implementing these experimental APIs. Older runtimes fail explicitly. No automatic upgrade, daemon restart or configuration change.
+---
 
-Sending uses native `codex queue` and returns **QUEUED**, not completed. The recipient may need to be opened; active goal loops may delay consumption. An empty queue does not prove successful execution. Unknown outcomes are never retried automatically. Do not send credentials: native CLI receives message text in argv. The wrapper accepts stdin to avoid shell interpolation and does not save message bodies.
+**codex-in-claude** is an independent [NoBrainer Tech](https://nobrainer.tech/) fork of [OpenAI's Codex plugin for Claude Code](https://github.com/openai/codex-plugin-cc). It adds discovery and messaging for **existing local Codex sessions**, alongside the upstream review, delegation and transfer tools.
 
-Standalone usage (replace the path with your checkout):
+| What you want to do | What this fork adds |
+| --- | --- |
+| Find the right conversation | List local Codex sessions by their real sections, with exact session IDs. |
+| Continue work in an existing session | Queue an authorized instruction to that session while preserving its model, effort, goal and working directory. |
+| Check what is still waiting | Read pending queue IDs without displaying message bodies. |
+
+The session features are merged in [fork PR #1](https://github.com/nobrainer-tech/codex-in-claude/pull/1). The separate [upstream proposal #833](https://github.com/openai/codex-plugin-cc/pull/833) tracks their submission to OpenAI. This fork is not an official OpenAI release.
+
+## Install
+
+You need Claude Code with plugin support, Node.js **18.18 or later**, and a local Codex CLI signed in to an account with Codex access. The session commands require Codex's experimental section and queue APIs; they were [verified with Codex CLI 0.163.0](COMPATIBILITY.md). Older versions may not expose them.
+
+In Claude Code, run these commands in order. Complete the plugin installation prompts before reloading:
+
+```text
+/plugin marketplace add nobrainer-tech/codex-in-claude
+/plugin install codex-in-claude@nobrainer-codex
+/reload-plugins
+/codex-in-claude:setup
+```
+
+The marketplace comes directly from this public repository. The command format follows the [Claude Code plugin installation guide](https://code.claude.com/docs/en/discover-plugins#add-a-marketplace).
+
+If Codex is missing, setup can offer to install Codex for you. To install it yourself, run `npm install -g @openai/codex` in your terminal. Then use `!codex login` from Claude Code if you need to sign in. Your normal [Codex usage limits and pricing](https://developers.openai.com/codex/pricing/) apply.
+
+The fork uses `/codex-in-claude:*`, so its commands can coexist with the official `/codex:*` plugin. For development from a checkout, replace the marketplace source with `/absolute/path/to/codex-in-claude`.
+
+## Work with existing sessions
+
+Start by listing sessions, then copy the exact UUID of the intended conversation:
+
+```text
+/codex-in-claude:sessions
+```
+
+After choosing the recipient, ask Claude Code to send your instruction. Replace `<session-uuid>` with the ID from the list:
+
+```text
+/codex-in-claude:send <session-uuid> Review the current diff and report any blockers. Do not edit files.
+/codex-in-claude:queue <session-uuid>
+```
+
+| Command | Result |
+| --- | --- |
+| `/codex-in-claude:sessions` | Local, non-archived sessions grouped by section. Add `--archived` for archived sessions. |
+| `/codex-in-claude:send <UUID> <instruction>` | Preview the target, then queue the instruction when you have explicitly authorized sending it. |
+| `/codex-in-claude:queue <UUID>` | Pending queue IDs and request IDs. |
+
+> [!IMPORTANT]
+> **QUEUED means pending delivery.** The recipient may need to be opened, and an active goal loop may delay consumption. An empty queue does not prove completion. Check the recipient's response for the actual result.
+
+Discovery covers the **local Codex home**. Remote hosts and ChatGPT conversations are excluded, and section order may differ from Desktop. The commands do not change the session's model, effort, goal or working directory, and do not automatically resume or interrupt it.
+
+Do not send credentials or other secrets: the native `codex queue` command receives message text as a process argument. The wrapper accepts stdin and does not save message bodies. An uncertain send is reported as unknown and is never retried automatically. Read the [compatibility and verification notes](COMPATIBILITY.md) for the exact boundaries.
+
+<details>
+<summary><strong>Use the session commands directly from a checkout</strong></summary>
+
+Run from the repository root. For the send commands, replace `<UUID>` with the exact target ID and create `instruction.txt` with the authorized message:
 
 ```sh
 node plugins/codex/scripts/codex-sessions.mjs sessions --json
 node plugins/codex/scripts/codex-sessions.mjs send --thread <UUID> < instruction.txt
-# After checking the preview and existing user authorization:
+# After checking the preview and confirming existing send authorization:
 node plugins/codex/scripts/codex-sessions.mjs send --thread <UUID> --execute < instruction.txt
 node plugins/codex/scripts/codex-sessions.mjs queue --thread <UUID>
 ```
 
-Use the local marketplace installation below; keep the official plugin installed if desired, as the fork uses its own command namespace. Replace the example absolute marketplace path with your own checkout location.
+The first `send` only previews the target; `--execute` queues the message. Section membership comes from `threadSection/list` and `thread/list`, without reading Codex databases. Unsupported runtimes fail explicitly; the commands do not upgrade Codex, restart its daemon or change its configuration.
 
-## Upstream capabilities
+</details>
 
-Use Codex from inside Claude Code for code reviews or to delegate tasks to Codex.
+## Built with NoBrainer Tech Flow
 
-This plugin is for Claude Code users who want an easy way to start using Codex from the workflow
-they already have.
+The session-routing extension and this documentation were developed using **[nobrainer-tech-flow](https://github.com/nobrainer-tech/nobrainer-tech-flow)** and its **[MCP server](https://github.com/nobrainer-tech/nobrainer-tech-flow/blob/main/mcp/README.md)**. The workflow defines the outcome and acceptance checks, guides implementation, records evidence and checks completion.
 
-<video src="./docs/plugin-demo.webm" controls muted playsinline autoplay></video>
+The MCP tools used for this work are `start_flow_task`, `check_flow_evidence` and `check_flow_done`. They check the task contract and submitted evidence; tests and runtime checks are run separately. Flow is a development workflow, not a runtime dependency of this plugin.
 
-## What You Get
+| Explore | What you will find |
+| --- | --- |
+| [NoBrainer Tech Flow](https://nobrainer.tech/flow/) | The workflow, examples and ways to get started. |
+| [Source and installation](https://github.com/nobrainer-tech/nobrainer-tech-flow) | The open-source workflow and its modules. |
+| [MCP setup](https://github.com/nobrainer-tech/nobrainer-tech-flow/blob/main/mcp/README.md#install) | Connect an MCP client to `https://mcp.nobrainer.tech/mcp`. |
+| [This fork's verification](COMPATIBILITY.md) | Tested commands, runtime versions and known limitations. |
 
-- `/codex-in-claude:review` for a normal read-only Codex review
-- `/codex-in-claude:adversarial-review` for a steerable challenge review
-- `/codex-in-claude:rescue`, `/codex-in-claude:transfer`, `/codex-in-claude:status`, `/codex-in-claude:result`, and `/codex-in-claude:cancel` to delegate work, hand off sessions, and manage background jobs
+Try Flow on a small task with a checkable result: **[choose your setup](https://github.com/nobrainer-tech/nobrainer-tech-flow#install-safely)**.
 
-## Requirements
-
-- **ChatGPT subscription (incl. Free) or OpenAI API key.**
-  - Usage will contribute to your Codex usage limits. [Learn more](https://developers.openai.com/codex/pricing).
-- **Node.js 18.18 or later**
-
-## Install
-
-Add the marketplace in Claude Code:
-
-```bash
-/plugin marketplace add /absolute/path/to/codex-in-claude
-```
-
-Install the plugin:
-
-```bash
-/plugin install codex-in-claude@nobrainer-codex
-```
-
-Reload plugins:
-
-```bash
-/reload-plugins
-```
-
-Then run:
-
-```bash
-/codex-in-claude:setup
-```
-
-`/codex-in-claude:setup` will tell you whether Codex is ready. If Codex is missing and npm is available, it can offer to install Codex for you.
-
-If you prefer to install Codex yourself, use:
-
-```bash
-npm install -g @openai/codex
-```
-
-If Codex is installed but not logged in yet, run:
-
-```bash
-!codex login
-```
-
-After install, you should see:
-
-- the slash commands listed below
-- the `codex-in-claude:codex-rescue` subagent in `/agents`
-
-One simple first run is:
-
-```bash
-/codex-in-claude:review --background
-/codex-in-claude:status
-/codex-in-claude:result
-```
-
-## Usage
+## Command reference
 
 ### `/codex-in-claude:review`
 
-Runs a normal Codex review on your current work. It gives you the same quality of code review as running `/review` inside Codex directly.
+Runs the native Codex review on your current work.
 
 > [!NOTE]
 > Code review especially for multi-file changes might take a while. It's generally recommended to run it in the background.
@@ -112,7 +122,7 @@ Use it when you want:
 - a review of your current uncommitted changes
 - a review of your branch compared to a base branch like `main`
 
-Use `--base <ref>` for branch review. It also supports `--wait` and `--background`. It is not steerable and does not take custom focus text. Use [`/codex-in-claude:adversarial-review`](#codexadversarial-review) when you want to challenge a specific decision or risk area.
+Use `--base <ref>` for branch review. It also supports `--wait` and `--background`. It is not steerable and does not take custom focus text. Use [`/codex-in-claude:adversarial-review`](#codex-in-claudeadversarial-review) when you want to challenge a specific decision or risk area.
 
 Examples:
 
@@ -122,7 +132,7 @@ Examples:
 /codex-in-claude:review --background
 ```
 
-This command is read-only and will not perform any changes. When run in the background you can use [`/codex-in-claude:status`](#codexstatus) to check on the progress and [`/codex-in-claude:cancel`](#codexcancel) to cancel the ongoing task.
+This command is read-only and will not perform any changes. When run in the background you can use [`/codex-in-claude:status`](#codex-in-claudestatus) to check on the progress and [`/codex-in-claude:cancel`](#codex-in-claudecancel) to cancel the ongoing task.
 
 ### `/codex-in-claude:adversarial-review`
 
@@ -158,7 +168,7 @@ Use it when you want Codex to:
 - investigate a bug
 - try a fix
 - continue a previous Codex task
-- take a faster or cheaper pass with a smaller model
+- choose a different model for a delegated task
 
 > [!NOTE]
 > Depending on the task and the model you choose these tasks might take a long time and it's generally recommended to force the task to be in the background or move the agent to the background.
@@ -262,39 +272,11 @@ When the review gate is enabled, the plugin uses a `Stop` hook to run a targeted
 > [!WARNING]
 > The review gate can create a long-running Claude/Codex loop and may drain usage limits quickly. Only enable it when you plan to actively monitor the session.
 
-## Typical Flows
-
-### Review Before Shipping
-
-```bash
-/codex-in-claude:review
-```
-
-### Hand A Problem To Codex
-
-```bash
-/codex-in-claude:rescue investigate why the build is failing in CI
-```
-
-### Start Something Long-Running
-
-```bash
-/codex-in-claude:adversarial-review --background
-/codex-in-claude:rescue --background investigate the flaky test
-```
-
-Then check in with:
-
-```bash
-/codex-in-claude:status
-/codex-in-claude:result
-```
-
 ## Codex Integration
 
 The Codex plugin wraps the [Codex app server](https://developers.openai.com/codex/app-server). It uses the global `codex` binary installed in your environment and [applies the same configuration](https://developers.openai.com/codex/config-basic).
 
-### Common Configurations
+### Configuration
 
 If you want to change the default reasoning effort or the default model that gets used by the plugin, you can define that inside your user-level or project-level `config.toml`. For example to always use `gpt-5.4-mini` on `high` for a specific project you can add the following to a `.codex/config.toml` file at the root of the directory you started Claude in:
 
@@ -313,7 +295,7 @@ Check out the Codex docs for more [configuration options](https://developers.ope
 
 ### Moving The Work Over To Codex
 
-Delegated tasks and any [stop gate](#what-does-the-review-gate-do) run can also be directly resumed inside Codex by running `codex resume` either with the specific session ID you received from running `/codex-in-claude:result` or `/codex-in-claude:status` or by selecting it from the list.
+Delegated tasks and any [stop gate](#enabling-review-gate) run can also be directly resumed inside Codex by running `codex resume` either with the specific session ID you received from running `/codex-in-claude:result` or `/codex-in-claude:status` or by selecting it from the list.
 
 This way you can review the Codex work or continue the work there.
 
@@ -337,10 +319,30 @@ That means:
 
 ### Will it use the same Codex config I already have?
 
-Yes. If you already use Codex, the plugin picks up the same [configuration](#common-configurations).
+Yes. If you already use Codex, the plugin picks up the same [configuration](#configuration).
 
 ### Can I keep using my current API key or base URL setup?
 
 Yes. Because the plugin uses your local Codex CLI, your existing sign-in method and config still apply.
 
 If you need to point the built-in OpenAI provider at a different endpoint, set `openai_base_url` in your [Codex config](https://developers.openai.com/codex/config-advanced/#config-and-state-locations).
+
+## Development
+
+From a checkout, install the development dependencies and run the repository checks:
+
+```sh
+npm ci
+npm test
+npm run check-version
+npm run build
+git diff --check
+```
+
+The build's `prebuild` step generates types from your installed Codex CLI. Verification results and their limits are recorded in [COMPATIBILITY.md](COMPATIBILITY.md); a passing local test suite is not proof of installation in a fresh Claude session.
+
+## Credits and license
+
+Based on [openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc) at commit [`db52e28`](https://github.com/openai/codex-plugin-cc/commit/db52e28f4d9ded852ab3942cea316258ae4ef346), upstream version 1.0.6. The fork's session-routing work is maintained by [NoBrainer Tech](https://nobrainer.tech/).
+
+The original copyright, [Apache-2.0 license](LICENSE) and [NOTICE](NOTICE) are preserved. The NoBrainer Tech logo is the canonical brand mark. The separate [nobrainer-tech-flow project](https://github.com/nobrainer-tech/nobrainer-tech-flow) is MIT-licensed.
