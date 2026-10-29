@@ -1,8 +1,8 @@
 {
-  "name": "codex",
-  "version": "1.0.6",
-  "description": "Use Codex from Claude Code to review code or delegate tasks.",
+  "name": "codex-in-claude",
+  "version": "1.0.6-nb.1",
+  "description": "Independent fork of OpenAI Codex for Claude Code, with existing-session routing.",
   "author": {
-    "name": "OpenAI"
+    "name": "NoBrainer Tech"
   }
 }
